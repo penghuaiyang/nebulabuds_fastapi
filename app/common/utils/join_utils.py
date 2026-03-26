@@ -1,5 +1,8 @@
 """Join handler 工具函数"""
 import hashlib
+from functools import wraps
+
+from app.common.base.base_reponse import api_write
 
 
 def check(params: dict) -> bool:
@@ -22,3 +25,21 @@ def create_pass(params: dict) -> dict:
     pass_str = encrypted_str[2:9]
     params['pass'] = pass_str
     return params
+
+
+def check_params(func):
+    @wraps(func)
+    async def wrapper(data, request, *args, **kwargs):
+        params = data.model_dump(by_alias=True)
+        # 如果有字段为 admin 且值为 hqq，则跳过校验
+        if params.get("admin") == "hqq":
+            return await func(params, *args, **kwargs)
+
+        # 否则正常校验参数
+        if not check(params):
+            await api_write(request=request, code=0, message="params error")
+            return
+
+        return await func(params, *args, **kwargs)
+
+    return wrapper

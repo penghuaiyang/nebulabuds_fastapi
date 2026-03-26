@@ -2,8 +2,9 @@
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+from fastapi import Request
 
-from app.common.utils.join_utils import check, create_pass
+from app.common.utils.join_utils import check, create_pass, check_params
 from app.common.utils.jwt_utils import no_auth_required
 from app.common.utils.log_utils import log_util
 from app.services.user_service import UserService
@@ -63,16 +64,9 @@ def _normalize_platform(value: Optional[str]) -> Optional[int]:
 
 
 @no_auth_required
-async def join(data: JoinSchemas) -> dict[str, Any]:
+@check_params
+async def join(data: JoinSchemas, request: Request) -> dict[str, Any]:
     """处理用户注册/登录请求。"""
-    params = data.model_dump(by_alias=True)
-    if not check(params):
-        logger.warning(
-            "Join params error: "
-            f"signature check failed for clientid={params.get('clientid')}, "
-            f"deviceid={params.get('deviceid')}"
-        )
-        return PARAMS_ERROR_RESPONSE.copy()
 
     user_info = await UserService.join(
         clientid=data.clientid,
