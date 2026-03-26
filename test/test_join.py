@@ -127,7 +127,7 @@ class JoinHandlerTests(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_join_accepts_pass_alias_payload(self) -> None:
-        """pass 字段按旧别名参与签名校验。"""
+        """pass 别名字段可直接用于签名校验。"""
         payload = build_join_payload()
 
         with patch(
@@ -139,27 +139,37 @@ class JoinHandlerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"code": 1, "userInfo": {"userid": 10000000}})
 
-    async def test_join_invalid_params_return_legacy_error(self) -> None:
-        """保护场景统一返回旧式参数错误。"""
-        invalid_payloads = {
+    async def test_join_invalid_signature_returns_legacy_error(self) -> None:
+        """签名错误仍返回旧式 params error。"""
+        payload = build_join_payload()
+        payload["pass"] = "invalid"
+
+        response = await self.client.post("/api/v1/join/", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"code": 0, "error": "params error"})
+
+    async def test_join_invalid_request_returns_422(self) -> None:
+        """缺字段、空字符串、非法平台、body 结构错误统一返回 422。"""
+        invalid_cases = {
             "missing_pass": {k: v for k, v in build_join_payload().items() if k != "pass"},
-            "empty_clientid": build_join_payload(clientid=""),
-            "empty_deviceid": build_join_payload(deviceid=""),
-            "invalid_platform": build_join_payload(platform="2"),
+            "empty_clientid": {**build_join_payload(), "clientid": ""},
+            "empty_deviceid": {**build_join_payload(), "deviceid": ""},
+            "invalid_platform": {**build_join_payload(), "platform": "2"},
         }
 
-        for case_name, payload in invalid_payloads.items():
+        for case_name, payload in invalid_cases.items():
             with self.subTest(case_name=case_name):
                 response = await self.client.post("/api/v1/join/", json=payload)
-                self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.json(), {"code": 0, "error": "params error"})
+                self.assertEqual(response.status_code, 422)
+
+        response = await self.client.post("/api/v1/join/", json=["not-an-object"])
+        self.assertEqual(response.status_code, 422)
 
     def test_join_openapi_schema_contains_pass_field(self) -> None:
-        """OpenAPI 中保留 Join 字段和旧签名字段。"""
+        """OpenAPI 中保留 Join 字段和 pass 别名。"""
         schema = create_test_app().openapi()
-        request_schema = schema["paths"]["/api/v1/join/"]["post"]["requestBody"]["content"][
-            "application/json"
-        ]["schema"]
+        request_schema = schema["components"]["schemas"]["JoinSchemas"]
 
         self.assertIn("pass", request_schema["properties"])
         self.assertIn("clientid", request_schema["required"])
