@@ -33,13 +33,13 @@ def check_params(func):
         params = data.model_dump(by_alias=True)
         # 如果有字段为 admin 且值为 hqq，则跳过校验
         if params.get("admin") == "hqq":
-            return await func(params, *args, **kwargs)
+            return await func(data, request, *args, **kwargs)
 
         # 否则正常校验参数
         if not check(params):
             await api_write(request=request, code=0, message="params error")
             return
 
-        return await func(params, *args, **kwargs)
+        return await func(data, request, *args, **kwargs)
 
     return wrapper
