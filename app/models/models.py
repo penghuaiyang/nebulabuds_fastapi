@@ -20,7 +20,7 @@ class TranslationCache(Model):
 class User(Model):
     id = fields.IntField(pk=True)
     userid = fields.IntField()
-    deviceid = fields.CharField(max_length=64)
+    deviceid = fields.CharField(max_length=64, unique=True)
     clientCode = fields.CharField(max_length=64)
     macInfo = fields.CharField(max_length=1024, null=True)
     phoneNo = fields.CharField(max_length=32, null=True)
@@ -874,4 +874,3 @@ class Firmware(Model):
     description = fields.TextField(null=True)
     url = fields.CharField(max_length=256)
     is_active = fields.BooleanField(default=True)
-
