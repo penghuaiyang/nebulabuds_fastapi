@@ -1,7 +1,7 @@
 """
 Example task for testing.
 """
-from app.taskiq.broker import broker
+from app.worker.broker import broker
 from app.common.utils.log_utils import log_util
 
 logger = log_util.get_logger("queue.tasks.example")

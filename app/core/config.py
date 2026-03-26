@@ -115,7 +115,7 @@ class Settings:
     mt_translate_model_id: str = os.getenv("MT_TRANSLATE_MODEL_ID", "")
     mt_translate_timeout_seconds: float = float(os.getenv("MT_TRANSLATE_TIMEOUT_SECONDS", "120"))
 
-    # taskiq
+    # worker
     broker_url: str = os.getenv("BROKER_URL", "redis://127.0.0.1:6379/1")
     result_backend_url: str = os.getenv("RESULT_BACKEND_URL", "redis://127.0.0.1:6379/1")
 

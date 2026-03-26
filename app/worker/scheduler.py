@@ -2,7 +2,7 @@
 Taskiq scheduler entry point.
 
 To start the scheduler, run from project root:
-    taskiq scheduler app.taskiq.scheduler:scheduler
+    worker scheduler app.worker.scheduler:scheduler
 
 Options:
     --skip-first-run    Skip executing tasks that should have run before startup
@@ -12,9 +12,9 @@ Important:
     - The scheduler must run as a separate process from your FastAPI app and workers
     - Ensure Redis is running before starting the scheduler
 """
-from app.taskiq.broker import scheduler
+from app.worker.broker import scheduler
 # Import tasks to ensure they are registered
-import app.taskiq.tasks  # noqa: F401
+import app.worker.tasks  # noqa: F401
 
 if __name__ == "__main__":
-    print("Please use: taskiq scheduler app.taskiq.scheduler:scheduler")
+    print("Please use: worker scheduler app.worker.scheduler:scheduler")

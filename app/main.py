@@ -32,13 +32,13 @@ from app.core.config import settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Import broker here to avoid circular imports
-    from app.taskiq.broker import broker
+    from app.worker.broker import broker
 
     # Startup
     await Tortoise.init(config=TORTOISE_ORM)
     await init_redis_pool()
 
-    # Start taskiq broker (only in non-worker processes)
+    # Start worker broker (only in non-worker processes)
     if not broker.is_worker_process:
         await broker.startup()
 
