@@ -33,6 +33,8 @@ NICKNAME_NOUNS = [
     "Explorer",
     "Pioneer",
 ]
+JOIN_LOCK_TIMEOUT_SECONDS = 10
+JOIN_LOCK_BLOCKING_TIMEOUT_SECONDS = 3
 
 
 class UserService:
@@ -108,6 +110,140 @@ class UserService:
             logger.warning(f"Redis delete failed: {exc}")
 
     @classmethod
+    async def _create_user_record(
+        cls,
+        clientid: str,
+        deviceid: str,
+        platform: Optional[int],
+        nation: Optional[str],
+        localLanguage: Optional[str],
+        brand: Optional[str],
+    ) -> User:
+        """创建新用户记录。"""
+        userid = await cls.allocate_userid()
+        nick_name = cls._generate_nickname()
+        avatar = cls._generate_avatar()
+        user = await User.create(
+            userid=userid,
+            deviceid=deviceid,
+            clientCode=clientid,
+            platForm=platform if platform is not None else 0,
+            nation=nation or "",
+            localLanguage=localLanguage or "",
+            brand=brand or "",
+            nickName=nick_name,
+            avartar=avatar,
+            vip=0,
+            time=int(time.time() * 1000),
+        )
+        logger.info(f"New user created: userid={userid}, deviceid={deviceid}")
+        return user
+
+    @classmethod
+    async def _get_or_create_user(
+        cls,
+        clientid: str,
+        deviceid: str,
+        platform: Optional[int],
+        nation: Optional[str],
+        localLanguage: Optional[str],
+        brand: Optional[str],
+    ) -> tuple[User, bool]:
+        """二次确认后查询或创建用户。"""
+        user = await User.filter(deviceid=deviceid).first()
+        if user:
+            logger.info(f"DB hit after lock for deviceid: {deviceid}")
+            return user, False
+
+        try:
+            user = await cls._create_user_record(
+                clientid=clientid,
+                deviceid=deviceid,
+                platform=platform,
+                nation=nation,
+                localLanguage=localLanguage,
+                brand=brand,
+            )
+            return user, True
+        except IntegrityError as exc:
+            logger.warning(
+                f"Concurrent join fallback for deviceid={deviceid}: {exc}"
+            )
+            user = await User.filter(deviceid=deviceid).first()
+            if not user:
+                raise
+            logger.info(
+                "Existing user recovered after concurrent create: "
+                f"userid={user.userid}, deviceid={deviceid}"
+            )
+            return user, False
+
+    @classmethod
+    async def _get_or_create_user_with_lock(
+        cls,
+        clientid: str,
+        deviceid: str,
+        platform: Optional[int],
+        nation: Optional[str],
+        localLanguage: Optional[str],
+        brand: Optional[str],
+    ) -> tuple[User, bool]:
+        """使用 Redis 分布式锁串行化同一 deviceid 的创建。"""
+        try:
+            redis_client = await cls._get_redis()
+        except Exception as exc:
+            logger.warning(
+                f"Join lock unavailable for deviceid={deviceid}, fallback without lock: {exc}"
+            )
+            return await cls._get_or_create_user(
+                clientid=clientid,
+                deviceid=deviceid,
+                platform=platform,
+                nation=nation,
+                localLanguage=localLanguage,
+                brand=brand,
+            )
+
+        lock = redis_client.lock(
+            RedisKeys.join_device_lock(deviceid),
+            timeout=JOIN_LOCK_TIMEOUT_SECONDS,
+            blocking_timeout=JOIN_LOCK_BLOCKING_TIMEOUT_SECONDS,
+        )
+        acquired = False
+        try:
+            acquired = await lock.acquire()
+            if not acquired:
+                logger.warning(
+                    f"Join lock acquire timeout for deviceid={deviceid}, fallback without lock"
+                )
+                return await cls._get_or_create_user(
+                    clientid=clientid,
+                    deviceid=deviceid,
+                    platform=platform,
+                    nation=nation,
+                    localLanguage=localLanguage,
+                    brand=brand,
+                )
+
+            logger.info(f"Join lock acquired for deviceid: {deviceid}")
+            return await cls._get_or_create_user(
+                clientid=clientid,
+                deviceid=deviceid,
+                platform=platform,
+                nation=nation,
+                localLanguage=localLanguage,
+                brand=brand,
+            )
+        finally:
+            if acquired:
+                try:
+                    await lock.release()
+                except Exception as exc:
+                    logger.warning(
+                        f"Join lock release failed for deviceid={deviceid}: {exc}"
+                    )
+
+    @classmethod
     async def join(
         cls,
         clientid: str,
@@ -118,47 +254,26 @@ class UserService:
         brand: Optional[str],
     ) -> dict:
         """处理用户注册/登录。"""
-        created = False
         cached = await cls.get_user_cache(deviceid)
         if cached:
             return cached
 
         user = await User.filter(deviceid=deviceid).first()
+        created = False
         if user:
             logger.info(f"DB hit for deviceid: {deviceid}")
         else:
-            try:
-                userid = await cls.allocate_userid()
-                nick_name = cls._generate_nickname()
-                avatar = cls._generate_avatar()
-                user = await User.create(
-                    userid=userid,
-                    deviceid=deviceid,
-                    clientCode=clientid,
-                    platForm=platform if platform is not None else 0,
-                    nation=nation or "",
-                    localLanguage=localLanguage or "",
-                    brand=brand or "",
-                    nickName=nick_name,
-                    avartar=avatar,
-                    vip=0,
-                    time=int(time.time() * 1000),
-                )
-                created = True
-                logger.info(f"New user created: userid={userid}, deviceid={deviceid}")
-            except IntegrityError as exc:
-                logger.warning(
-                    f"Concurrent join fallback for deviceid={deviceid}: {exc}"
-                )
-                user = await User.filter(deviceid=deviceid).first()
-                if not user:
-                    raise
-                logger.info(
-                    "Existing user recovered after concurrent create: "
-                    f"userid={user.userid}, deviceid={deviceid}"
-                )
+            user, created = await cls._get_or_create_user_with_lock(
+                clientid=clientid,
+                deviceid=deviceid,
+                platform=platform,
+                nation=nation,
+                localLanguage=localLanguage,
+                brand=brand,
+            )
 
         if not created:
             logger.info(f"Existing user login: userid={user.userid}, deviceid={deviceid}")
+
         await cls.set_user_cache(user)
         return await user.to_dict()

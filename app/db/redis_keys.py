@@ -5,22 +5,27 @@ class RedisKeys:
 
     # ===================== 设备与用户映射 =====================
     @staticmethod
-    def device_user_id(device_id: str):
+    def device_user_id(device_id: str) -> str:
         """deviceid -> userid 映射"""
         return f"device_userid:{device_id}"
 
     @staticmethod
-    def email_code(email: str):
+    def join_device_lock(device_id: str) -> str:
+        """Join 接口的 deviceid 分布式锁"""
+        return f"join_lock:{device_id}"
+
+    @staticmethod
+    def email_code(email: str) -> str:
         """邮箱验证码"""
         return f"email:code:{email}"
 
     @staticmethod
-    def sms_code(phone_no: str):
+    def sms_code(phone_no: str) -> str:
         """短信验证码"""
         return f"sms:code:{phone_no}"
 
     @staticmethod
-    def macaddr_benefit_duration(macaddr: str):
+    def macaddr_benefit_duration(macaddr: str) -> str:
         """MAC 当前权益 duration_config"""
         return f"macaddr_benefit_duration:{macaddr}"
 

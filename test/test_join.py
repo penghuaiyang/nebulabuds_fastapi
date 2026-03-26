@@ -15,10 +15,7 @@ from app.view.join_handler import JOIN_SIGNATURE_FIELDS
 
 def build_join_payload(**overrides: Any) -> dict[str, Any]:
     """构造符合旧签名规则的 Join 请求。"""
-    payload = {
-        field: overrides.get(field)
-        for field in JOIN_SIGNATURE_FIELDS
-    }
+    payload = {field: overrides.get(field) for field in JOIN_SIGNATURE_FIELDS}
     payload["clientid"] = overrides.get("clientid", "PVMB8x1N")
     payload["deviceid"] = overrides.get("deviceid", "UUID_DEVICE_001")
     return create_pass(payload)
@@ -44,8 +41,37 @@ class FakeUser:
         return self._user_info
 
 
+class FakeRedisLock:
+    """测试用 Redis 锁。"""
+
+    def __init__(self, acquired: bool = True):
+        self.acquired = acquired
+        self.released = False
+
+    async def acquire(self) -> bool:
+        """模拟加锁。"""
+        return self.acquired
+
+    async def release(self) -> None:
+        """模拟释放锁。"""
+        self.released = True
+
+
+class FakeRedisClient:
+    """测试用 Redis 客户端。"""
+
+    def __init__(self, lock: FakeRedisLock):
+        self._lock = lock
+        self.lock_calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+
+    def lock(self, *args: Any, **kwargs: Any) -> FakeRedisLock:
+        """记录 lock 调用参数。"""
+        self.lock_calls.append((args, kwargs))
+        return self._lock
+
+
 class JoinHandlerTests(unittest.IsolatedAsyncioTestCase):
-    """Join 接口测试。"""
+    """Join handler 测试。"""
 
     async def asyncSetUp(self) -> None:
         """初始化测试客户端。"""
@@ -200,24 +226,79 @@ class UserServiceJoinTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, user_info)
         set_cache_mock.assert_awaited_once_with(fake_user)
 
-    async def test_join_falls_back_after_integrity_error(self) -> None:
-        """并发创建冲突时回退查询已存在用户。"""
+    async def test_join_rechecks_db_under_lock_before_create(self) -> None:
+        """首次未命中后，锁内二次查询命中时不重复创建。"""
         user_info = {
             "userid": 10000000,
             "deviceid": "UUID_DEVICE_001",
             "clientCode": "PVMB8x1N",
         }
         fake_user = FakeUser(user_info)
-
-        empty_query = MagicMock()
-        empty_query.first = AsyncMock(return_value=None)
-        existing_query = MagicMock()
-        existing_query.first = AsyncMock(return_value=fake_user)
+        first_query = MagicMock()
+        first_query.first = AsyncMock(return_value=None)
+        second_query = MagicMock()
+        second_query.first = AsyncMock(return_value=fake_user)
+        fake_lock = FakeRedisLock()
+        fake_redis = FakeRedisClient(fake_lock)
 
         with patch.object(
             UserService,
             "get_user_cache",
             new=AsyncMock(return_value=None),
+        ), patch.object(
+            UserService,
+            "_get_redis",
+            new=AsyncMock(return_value=fake_redis),
+        ), patch.object(
+            UserService,
+            "set_user_cache",
+            new=AsyncMock(),
+        ) as set_cache_mock, patch(
+            "app.services.user_service.User.filter",
+            side_effect=[first_query, second_query],
+        ), patch(
+            "app.services.user_service.User.create",
+            new=AsyncMock(),
+        ) as create_mock:
+            result = await UserService.join(
+                clientid="PVMB8x1N",
+                deviceid="UUID_DEVICE_001",
+                platform=0,
+                nation="CN",
+                localLanguage="zh-CN",
+                brand="Apple",
+            )
+
+        self.assertEqual(result, user_info)
+        self.assertTrue(fake_lock.released)
+        create_mock.assert_not_awaited()
+        set_cache_mock.assert_awaited_once_with(fake_user)
+
+    async def test_join_falls_back_after_integrity_error_inside_lock(self) -> None:
+        """锁内 create 仍冲突时回退查询已存在用户。"""
+        user_info = {
+            "userid": 10000000,
+            "deviceid": "UUID_DEVICE_001",
+            "clientCode": "PVMB8x1N",
+        }
+        fake_user = FakeUser(user_info)
+        first_query = MagicMock()
+        first_query.first = AsyncMock(return_value=None)
+        second_query = MagicMock()
+        second_query.first = AsyncMock(return_value=None)
+        third_query = MagicMock()
+        third_query.first = AsyncMock(return_value=fake_user)
+        fake_lock = FakeRedisLock()
+        fake_redis = FakeRedisClient(fake_lock)
+
+        with patch.object(
+            UserService,
+            "get_user_cache",
+            new=AsyncMock(return_value=None),
+        ), patch.object(
+            UserService,
+            "_get_redis",
+            new=AsyncMock(return_value=fake_redis),
         ), patch.object(
             UserService,
             "allocate_userid",
@@ -228,7 +309,7 @@ class UserServiceJoinTests(unittest.IsolatedAsyncioTestCase):
             new=AsyncMock(),
         ) as set_cache_mock, patch(
             "app.services.user_service.User.filter",
-            side_effect=[empty_query, existing_query],
+            side_effect=[first_query, second_query, third_query],
         ), patch(
             "app.services.user_service.User.create",
             new=AsyncMock(side_effect=IntegrityError("duplicate deviceid")),
@@ -243,6 +324,7 @@ class UserServiceJoinTests(unittest.IsolatedAsyncioTestCase):
             )
 
         self.assertEqual(result, user_info)
+        self.assertTrue(fake_lock.released)
         set_cache_mock.assert_awaited_once_with(fake_user)
 
 
