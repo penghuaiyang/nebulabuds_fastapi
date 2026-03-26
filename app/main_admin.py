@@ -61,7 +61,7 @@ app.add_exception_handler(OperationalError, tortoise_exception_handler)
 app.add_exception_handler(RedisError, redis_exception_handler)
 app.add_exception_handler(Exception, general_exception_handler)
 
-app.include_router(router_admin, prefix="/admin/api/v1")
+app.include_router(router_admin, prefix="/admin/api")
 
 if __name__ == "__main__":
     import uvicorn

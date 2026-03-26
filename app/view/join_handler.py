@@ -27,7 +27,7 @@ class JoinSchemas(BaseModel):
         max_length=64,
         description="设备ID",
     )
-    platform: Optional[Literal["0", "1"]] = Field(
+    platform: Optional[Literal[0, 1]] = Field(
         None,
         description="平台: 0=ios, 1=android",
     )

@@ -77,7 +77,7 @@ app.add_exception_handler(OperationalError, tortoise_exception_handler)
 app.add_exception_handler(RedisError, redis_exception_handler)
 app.add_exception_handler(Exception, general_exception_handler)
 
-app.include_router(router, prefix="/api/v1")
+app.include_router(router, prefix="/api")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 if __name__ == "__main__":
