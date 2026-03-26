@@ -9,65 +9,11 @@ from app.common.utils.log_utils import log_util
 from app.services.user_service import UserService
 
 logger = log_util.get_logger("join_handler")
-
-JOIN_SIGNATURE_FIELDS = (
-    "clientid",
-    "deviceid",
-    "platform",
-    "nation",
-    "localLanguage",
-    "brand",
-)
 PARAMS_ERROR_RESPONSE = {"code": 0, "error": "params error"}
-
-
-def _build_join_example(
-    clientid: str,
-    deviceid: str,
-    platform: Optional[str],
-    nation: Optional[str],
-    local_language: Optional[str],
-    brand: Optional[str],
-) -> dict[str, Any]:
-    """构造带签名的 Join 请求示例。"""
-    payload = {
-        "clientid": clientid,
-        "deviceid": deviceid,
-        "platform": platform,
-        "nation": nation,
-        "localLanguage": local_language,
-        "brand": brand,
-    }
-    return create_pass(payload)
-
-
-JOIN_REQUEST_EXAMPLES = [
-    _build_join_example(
-        clientid="PVMB8x1N",
-        deviceid="UUID_DEVICE_001",
-        platform="0",
-        nation="CN",
-        local_language="zh-CN",
-        brand="Apple",
-    ),
-    _build_join_example(
-        clientid="PVMB8x1N",
-        deviceid="UUID_DEVICE_001",
-        platform=None,
-        nation=None,
-        local_language=None,
-        brand=None,
-    ),
-]
 
 
 class JoinSchemas(BaseModel):
     """Join 请求模型。"""
-
-    model_config = ConfigDict(
-        populate_by_name=True,
-        json_schema_extra={"examples": JOIN_REQUEST_EXAMPLES},
-    )
 
     clientid: str = Field(
         ...,
@@ -107,8 +53,6 @@ class JoinSchemas(BaseModel):
         max_length=64,
         description="签名校验",
     )
-
-
 
 
 def _normalize_platform(value: Optional[str]) -> Optional[int]:
