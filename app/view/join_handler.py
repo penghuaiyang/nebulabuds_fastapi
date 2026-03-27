@@ -4,6 +4,7 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field
 from fastapi import Request
 
+from app.common.schemas.base import BaseSchema
 from app.common.utils.join_utils import check_params
 from app.common.utils.jwt_utils import no_auth_required
 from app.common.utils.log_utils import log_util
@@ -13,8 +14,8 @@ logger = log_util.get_logger("join_handler")
 PARAMS_ERROR_RESPONSE = {"code": 0, "error": "params error"}
 
 
-class JoinSchemas(BaseModel):
-    """Join 请求模型。"""
+class JoinSchemas(BaseSchema):
+    """Join 请求模型（继承自 BaseSchema，包含签名字段）"""
 
     clientid: str = Field(
         ...,
@@ -46,13 +47,6 @@ class JoinSchemas(BaseModel):
         None,
         max_length=32,
         description="手机品牌",
-    )
-    pass_: str = Field(
-        ...,
-        alias="pass",
-        min_length=1,
-        max_length=64,
-        description="签名校验",
     )
 
 

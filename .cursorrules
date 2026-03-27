@@ -43,14 +43,15 @@ app/common/utils/# 工具函数层（复用逻辑）
 
 ### 3.1 基本结构
 ```python
-from pydantic import BaseModel, Field
+from pydantic import Field
 from fastapi import Request
 
+from app.common.schemas.base import BaseSchema
 from app.common.utils.jwt_utils import no_auth_required
 from app.services.{业务名}_service import {业务名}Service
 
-class {业务名}Schemas(BaseModel):
-    """请求参数模型"""
+class {业务名}Schemas(BaseSchema):
+    """请求参数模型（继承 BaseSchema，自动包含签名字段）"""
     field1: str = Field(..., min_length=1, max_length=64, description="字段说明")
     field2: Optional[int] = Field(None, description="可选字段")
 
@@ -65,8 +66,8 @@ async def {业务名}(data: {业务名}Schemas, request: Request) -> dict:
 ### 3.2 Schema 设计原则
 - 必填字段：`Field(..., min_length=1, max_length=N)`
 - 可选字段：`Optional[T] = Field(None, ...)`
-- 使用 `alias="pass"` 处理 `pass` 关键字
 - 添加清晰的 `description`
+- **重要**：所有需要签名校验的 Schema 必须继承 `BaseSchema`
 
 ### 3.3 响应格式
 ```python
@@ -87,6 +88,18 @@ except Exception as e:
     logger.error(f"Unexpected error: {e}")
     return {"code": -1, "error": str(e)}
 ```
+
+### 3.5 签名字段基类
+所有需要签名校验的接口 Schema 必须继承 `BaseSchema`：
+```python
+from app.common.schemas.base import BaseSchema
+
+class {业务名}Schemas(BaseSchema):
+    # 无需重复定义 pass_ 字段，已从 BaseSchema 继承
+    field1: str = Field(..., description="...")
+```
+
+`BaseSchema` 位于 `app/common/schemas/base.py`，包含签名字段定义。
 
 ---
 
