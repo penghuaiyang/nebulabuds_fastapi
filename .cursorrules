@@ -204,18 +204,97 @@ router.add_api_route(
 
 ---
 
-## 七、Redis Key 命名规范
+## 七、Redis Key 重构规范
 
-在 `app/db/redis_keys.py` 中定义：
+### 7.1 新 Key 格式
+
+**格式：`{db}:{namespace}:{scope}:{identifier}:{field?}`**
+
+```python
+# 示例
+7:record:user:{userid}:duration     # 录音时长
+8:ai:user:{userid}:num              # AI 次数
+10:music:user:{userid}:num          # 音乐次数
+14:btname:user:{userid}:list        # 蓝牙名称列表
+23:mac:user:{userid}:active_code    # mac -> activeCode Hash
+24:mac:user:{userid}:clientid       # mac -> clientid Hash
+25:record:user:{userid}:free_date   # 免费录音到期
+29:record:user:{userid}:rest        # 录音剩余
+0:config:app:single_max_duration    # 单次最大时长（全局）
+```
+
+### 7.2 分片数据计算
+
+旧系统通过 `db = BASE_DB + CLIENT_DB_START[clientid]` 实现分片。
+在 `app/db/redis_keys.py` 中通过 `db_start.json` 获取偏移量：
+
+```python
+# app/db/redis_keys.py
+import json
+from pathlib import Path
+
+_CLIENT_DB_START_PATH = Path(__file__).parent / "db_start.json"
+
+def _get_db_offset(clientid: str) -> int:
+    """根据 clientid 获取 db 偏移量"""
+    if not hasattr(_get_db_offset, "_cache"):
+        if _CLIENT_DB_START_PATH.exists():
+            with open(_CLIENT_DB_START_PATH, "r", encoding="utf-8") as f:
+                _get_db_offset._cache = json.load(f)
+        else:
+            _get_db_offset._cache = {}
+    return _get_db_offset._cache.get(clientid, 0)
+
+def ai_num(userid: str, clientid: str = "") -> str:
+    offset = _get_db_offset(clientid)
+    return f"{8 + offset}:ai:user:{userid}:num"
+```
+
+### 7.3 Key 定义位置
+
+所有 Redis Key 在 `app/db/redis_keys.py` 的 `RedisKeys` 类中定义：
+
 ```python
 class RedisKeys:
-    # 通用格式：{业务}_{主键}_{标识}
-    USER_ID_SEQ = "user_id_seq"
-
     @staticmethod
-    def device_user_id(device_id: str):
-        return f"device_userid:{device_id}"
+    def ai_num(userid: str, clientid: str = "") -> str:
+        """AI 使用次数（db=8 + clientid偏移）"""
+        offset = _get_db_offset(clientid)
+        return f"{8 + offset}:ai:user:{userid}:num"
 ```
+
+### 7.4 迁移脚本
+
+管理脚本位于 `admin/` 目录：
+
+| 脚本 | 用途 |
+|------|------|
+| `admin/migrate_redis_keys.py` | 旧格式迁移到新格式 |
+| `admin/rollback_redis_keys.py` | 回滚到旧格式（灾备） |
+| `admin/validate_redis_keys.py` | 校验数据一致性 |
+
+**使用示例：**
+
+```bash
+# Dry Run 预览
+python -m admin.migrate_redis_keys
+
+# 实际迁移固定 db
+python -m admin.migrate_redis_keys --live
+
+# 迁移分片数据（指定 userid 范围）
+python -m admin.migrate_redis_keys --live --start-userid 10000000 --end-userid 50000000
+
+# 校验迁移结果
+python -m admin.validate_redis_keys --sample-size 100
+```
+
+### 7.5 分片数据迁移策略
+
+1. 按 userid 范围遍历
+2. 遍历所有分片 db（通过 `client_db_start.json` 获取偏移）
+3. 取第一个非空值写入新 key（同用户数据只在一个分片中）
+4. 分片数据统一存储到固定 db，不再分片
 
 ---
 
