@@ -212,6 +212,10 @@ class Settings:
     # MAC 地址序号起始值
     mac_address_serial_start: int = int(os.getenv("MAC_ADDRESS_SERIAL_START", "10000000"))
 
+    # ===================== App 配置 =====================
+    # prompt 版本号（从原 config.json 迁移）
+    prompt_version: float = float(os.getenv("PROMPT_VERSION", "1.1"))
+
     @property
     def mysql_dsn(self) -> str:
         # asyncmy driver DSN
@@ -227,7 +231,6 @@ class Settings:
 
 @lru_cache()
 def get_settings() -> Settings:
-    # Cached settings instance to avoid re-reading envs.
     return Settings()
 
 
