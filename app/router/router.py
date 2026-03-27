@@ -1,10 +1,19 @@
 from fastapi import APIRouter
 
+from app.view.gpt3_handler import gpt3
 from app.view.join_handler import join
 from app.view.login_handler import login
 
 
 router = APIRouter()
+
+router.add_api_route(
+    path="/gpt3/",
+    endpoint=gpt3,
+    methods=["POST"],
+    summary="GPT3 AI 对话",
+    tags=["ai"],
+)
 
 router.add_api_route(
     path="/join/",

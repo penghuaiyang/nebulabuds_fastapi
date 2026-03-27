@@ -109,3 +109,21 @@ class RedisKeys:
         if clientid:
             return f"0:config:app:single_max_duration:{clientid}"
         return "0:config:app:single_max_duration"
+
+    # ===================== GPT AI 对话相关 =====================
+
+    @staticmethod
+    def ai_day_num(userid: int) -> str:
+        """AI 日使用次数（原 db=26）
+
+        用于记录用户每日使用 AI 对话的次数，实现每日次数限制。
+        """
+        return f"26:ai:day:num:{userid}"
+
+    @staticmethod
+    def gpt_conversation(userid: int) -> str:
+        """GPT 会话 ID（原 db=17）
+
+        用于保持 GPT 对话的上下文连续性。
+        """
+        return f"17:gpt:conversation:{userid}"
