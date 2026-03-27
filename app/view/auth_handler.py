@@ -8,6 +8,7 @@ from app.common.utils.jwt_utils import jwt_manager, no_auth_required
 from app.common.utils.blacklist_utils import is_blacklisted
 from app.db.redis import get_redis_client
 from app.common.utils.log_utils import log_util
+from app.services.user_service import UserService
 
 logger = log_util.get_logger("auth_handler")
 
@@ -35,13 +36,8 @@ async def _check_user_device_match(userid: int, deviceid: str) -> tuple[bool, in
     Returns:
         (is_valid, error_code, error_message)
     """
-    client = await get_redis_client()
-    if client is None:
-        logger.error("Redis client not available for user device check")
-        return False, -1, "服务暂不可用"
-
     try:
-        user_info = await client.hgetall(str(userid))
+        user_info = await UserService.get_user_by_userid(userid)
         user_deviceid = user_info.get("deviceid", "")
         if user_deviceid != deviceid:
             return False, -27, "认证不通过 无法签发token"
