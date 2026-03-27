@@ -7,7 +7,7 @@ import redis.asyncio as redis
 from app.common.utils.gpt4mini_utils import gpt41mini_agent
 from app.common.utils.log_utils import log_util
 from app.db.redis import get_redis_client
-from app.db.redis_keys import RedisKeys
+from app.db.redis_keys import RedisKeys, CLIENT_DB_START
 from app.models.models import Mac
 from app.services.user_service import UserService
 
@@ -20,39 +20,6 @@ AI_NUM_LIMIT_NORMAL = 50
 MAC_BINDING_CACHE_TTL_SECONDS = 300
 MAC_BINDING_NEGATIVE_CACHE_TTL_SECONDS = 60
 AI_QUOTA_RESERVATION_TTL_SECONDS = 300
-
-CLIENT_DB_START = {
-    "tx-11033": 0,
-    "tx-11055": 1,
-    "tx-11069": 2,
-    "tx-11105": 3,
-    "tx-11106": 4,
-    "tx-11154": 5,
-    "tx-11175": 6,
-    "tx-11212": 7,
-    "tx-11479": 8,
-    "tx-11522": 9,
-    "tx-11558": 10,
-    "tx-11607": 11,
-    "tx-11624": 12,
-    "tx-11725": 13,
-    "tx-11743": 14,
-    "tx-11766": 15,
-    "tx-11791": 16,
-    "tx-11863": 17,
-    "tx-11914": 18,
-    "tx-11929": 19,
-    "tx-12030": 20,
-    "tx-12043": 21,
-    "tx-12299": 22,
-    "tx-12305": 23,
-    "tx-12332": 24,
-    "tx-12351": 25,
-    "tx-12410": 26,
-    "tx-12425": 27,
-    "tx-12433": 28,
-    "tx-12434": 29,
-}
 
 RESERVE_AI_QUOTA_SCRIPT = """
 local total_limit = tonumber(ARGV[1])

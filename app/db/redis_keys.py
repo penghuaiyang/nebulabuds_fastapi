@@ -14,6 +14,7 @@ def _load_client_db_start() -> dict:
             _load_client_db_start._cache = {}
     return _load_client_db_start._cache
 
+CLIENT_DB_START = _load_client_db_start()
 
 def _get_db_offset(clientid: str) -> int:
     """根据 clientid 获取 db 偏移量。"""
