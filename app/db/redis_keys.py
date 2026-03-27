@@ -30,6 +30,10 @@ class RedisKeys:
     DEVICE_INFO = "device:info"
     MAX_USERID = "max_userid"
 
+    # ===================== 黑名单 =====================
+    BLACK_USERID = "NEW_BLACK_USERID"
+    BLACK_DEVICEID = "NEW_BLACK_DEVICEID"
+
     # ===================== 设备与用户映射 =====================
     @staticmethod
     def device_user_id(device_id: str) -> str:

@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.view.gpt3_handler import gpt3
 from app.view.join_handler import join
 from app.view.login_handler import login
+from app.view.auth_handler import auth
 
 
 router = APIRouter()
@@ -28,5 +29,13 @@ router.add_api_route(
     endpoint=login,
     methods=["POST"],
     summary="Login 用户登录",
+    tags=["auth"],
+)
+
+router.add_api_route(
+    path="/auth/",
+    endpoint=auth,
+    methods=["POST"],
+    summary="Auth Token 签发/刷新",
     tags=["auth"],
 )
