@@ -37,6 +37,11 @@ class RedisKeys:
         return f"device_userid:{device_id}"
 
     @staticmethod
+    def user_profile(userid: int) -> str:
+        """userid -> user profile 缓存"""
+        return f"user:profile:{userid}"
+
+    @staticmethod
     def join_device_lock(device_id: str) -> str:
         """Join 接口的 deviceid 分布式锁"""
         return f"join_lock:{device_id}"
@@ -50,14 +55,6 @@ class RedisKeys:
     def sms_code(phone_no: str) -> str:
         """短信验证码"""
         return f"sms:code:{phone_no}"
-
-    @staticmethod
-    def macaddr_benefit_duration(macaddr: str) -> str:
-        """MAC 当前权益 duration_config"""
-        return f"macaddr_benefit_duration:{macaddr}"
-
-    # ===================== Login 业务 Redis（统一 db={N}:{namespace}:... 格式） =====================
-    # 格式: {db}:{namespace}:{scope}:{identifier}:{field?}
 
     @staticmethod
     def record_duration(userid: int) -> str:

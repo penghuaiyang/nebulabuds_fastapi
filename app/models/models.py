@@ -41,6 +41,9 @@ class User(Model):
 
     class Meta:
         table = "user"
+        indexes = [
+            ("userid",),
+        ]
 
     async def to_dict(self):
         return {

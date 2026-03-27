@@ -5,7 +5,8 @@ from typing import Any, Optional
 from app.common.utils.log_utils import log_util
 from app.db.redis import get_redis_client
 from app.db.redis_keys import RedisKeys
-from app.models.models import PurchasedRecord, User
+from app.models.models import PurchasedRecord
+from app.services.user_service import UserService
 
 logger = log_util.get_logger("login_service")
 
@@ -186,11 +187,9 @@ class LoginService:
         """处理用户登录，返回登录结果数据。"""
         from app.core.config import settings
 
-        user = await User.filter(userid=userid).first()
-        if not user:
+        user_info = await UserService.get_user_by_userid(userid)
+        if not user_info:
             raise ValueError("user not exist")
-
-        user_info = await user.to_dict()
         user_info["userCode"] = _to_user_code(str(userid))
         user_info["prompt_version"] = settings.prompt_version
 

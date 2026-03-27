@@ -35,6 +35,7 @@ NICKNAME_NOUNS = [
 ]
 JOIN_LOCK_TIMEOUT_SECONDS = 10
 JOIN_LOCK_BLOCKING_TIMEOUT_SECONDS = 3
+USER_CACHE_TTL_SECONDS = 86400
 
 
 class UserService:
@@ -72,42 +73,109 @@ class UserService:
         return userid
 
     @classmethod
-    async def get_user_cache(cls, deviceid: str) -> Optional[dict]:
-        """从缓存读取用户信息。"""
+    async def _get_user_cache(cls, cache_key: str, cache_label: str) -> Optional[dict]:
+        """从 Redis 读取用户缓存。"""
         try:
             redis_client = await cls._get_redis()
-            cache_key = RedisKeys.device_user_id(deviceid)
             cached = await redis_client.get(cache_key)
             if cached:
-                logger.info(f"Cache hit for deviceid: {deviceid}")
+                logger.info(f"Cache hit for {cache_label}")
                 return json.loads(cached)
             return None
         except Exception as exc:
-            logger.warning(f"Redis get failed: {exc}")
+            logger.warning(f"Redis get failed for {cache_label}: {exc}")
             return None
 
     @classmethod
-    async def set_user_cache(cls, user: User) -> None:
-        """写入用户缓存。"""
+    async def get_user_cache(cls, deviceid: str) -> Optional[dict]:
+        """按 deviceid 读取用户缓存。"""
+        return await cls._get_user_cache(
+            RedisKeys.device_user_id(deviceid),
+            f"deviceid={deviceid}",
+        )
+
+    @classmethod
+    async def get_user_cache_by_userid(cls, userid: int) -> Optional[dict]:
+        """按 userid 读取用户缓存。"""
+        return await cls._get_user_cache(
+            RedisKeys.user_profile(userid),
+            f"userid={userid}",
+        )
+
+    @classmethod
+    async def set_user_cache(
+            cls,
+            user: User,
+            user_data: Optional[dict] = None,
+    ) -> None:
+        """同时写入 deviceid 和 userid 两份用户缓存。"""
         try:
             redis_client = await cls._get_redis()
-            cache_key = RedisKeys.device_user_id(user.deviceid)
-            user_data = await user.to_dict()
-            await redis_client.setex(cache_key, 86400, json.dumps(user_data))
-            logger.info(f"Cache set for deviceid: {user.deviceid}")
+            user_data = user_data or await user.to_dict()
+            payload = json.dumps(user_data)
+            await redis_client.setex(
+                RedisKeys.device_user_id(user.deviceid),
+                USER_CACHE_TTL_SECONDS,
+                payload,
+            )
+            await redis_client.setex(
+                RedisKeys.user_profile(user.userid),
+                USER_CACHE_TTL_SECONDS,
+                payload,
+            )
+            logger.info(
+                f"Cache set for deviceid={user.deviceid}, userid={user.userid}"
+            )
         except Exception as exc:
             logger.warning(f"Redis set failed: {exc}")
 
     @classmethod
-    async def invalidate_user_cache(cls, deviceid: str) -> None:
-        """删除用户缓存。"""
+    async def invalidate_user_cache(
+            cls,
+            deviceid: Optional[str] = None,
+            userid: Optional[int] = None,
+    ) -> None:
+        """按 deviceid 和 userid 删除用户缓存。"""
+        keys = []
+        if deviceid:
+            keys.append(RedisKeys.device_user_id(deviceid))
+        if userid is not None:
+            keys.append(RedisKeys.user_profile(userid))
+        if not keys:
+            return
+
         try:
             redis_client = await cls._get_redis()
-            cache_key = RedisKeys.device_user_id(deviceid)
-            await redis_client.delete(cache_key)
-            logger.info(f"Cache invalidated for deviceid: {deviceid}")
+            await redis_client.delete(*keys)
+            logger.info(
+                "Cache invalidated for "
+                f"deviceid={deviceid}, userid={userid}"
+            )
         except Exception as exc:
             logger.warning(f"Redis delete failed: {exc}")
+
+    @classmethod
+    async def _query_user_by_userid(cls, userid: int) -> Optional[User]:
+        """从数据库按 userid 读取用户。"""
+        user = await User.filter(userid=userid).first()
+        if user:
+            logger.info(f"DB hit for userid: {userid}")
+        return user
+
+    @classmethod
+    async def get_user_by_userid(cls, userid: int) -> Optional[dict]:
+        """按 userid 读取用户信息，优先走缓存。"""
+        cached = await cls.get_user_cache_by_userid(userid)
+        if cached:
+            return cached
+
+        user = await cls._query_user_by_userid(userid)
+        if not user:
+            return None
+
+        user_data = await user.to_dict()
+        await cls.set_user_cache(user, user_data)
+        return user_data
 
     @classmethod
     async def _create_user_record(
@@ -255,8 +323,9 @@ class UserService:
     ) -> dict:
         """处理用户注册/登录。"""
         cached = await cls.get_user_cache(deviceid)
+        vip_info = {"vip": 0}
         if cached:
-            return cached
+            return cached | vip_info
 
         user = await User.filter(deviceid=deviceid).first()
         created = False
@@ -278,5 +347,4 @@ class UserService:
         await cls.set_user_cache(user)
 
         # 初始化 vip 为 0
-        vip_info = {"vip": 0}
         return await user.to_dict() | vip_info
