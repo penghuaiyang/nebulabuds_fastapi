@@ -31,6 +31,19 @@ class RedisKeys:
     BLACK_USERID = "NEW_BLACK_USERID"
     BLACK_DEVICEID = "NEW_BLACK_DEVICEID"
 
+    # 手机号绑定 Redis DB
+    PHONENO_DB = "phone_no"
+
+    # 邮箱绑定 Redis DB
+    EMAIL_DB = "email"
+
+    # Apple ID 绑定
+    APPLE_SUB_DB = "apple_sub"
+
+    # Google/X 登录绑定
+    GOOGLE_SUB_DB = "google_sub"
+    X_SUB_DB = "x_sub"
+
     @staticmethod
     def device_user_id(device_id: str) -> str:
         """deviceid -> userid 映射。"""

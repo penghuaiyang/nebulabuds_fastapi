@@ -877,3 +877,31 @@ class Firmware(Model):
     description = fields.TextField(null=True)
     url = fields.CharField(max_length=256)
     is_active = fields.BooleanField(default=True)
+
+
+class Wallpaper(Model):
+    id = fields.IntField(pk=True)
+    userid = fields.IntField(description="用户ID")
+    url = fields.CharField(max_length=256, description="壁纸URL")
+    thumbnail = fields.CharField(max_length=256, null=True, description="缩略图URL")
+    is_deleted = fields.BooleanField(default=False, description="是否删除")
+    created_at = fields.BigIntField(description="创建时间戳")
+    updated_at = fields.BigIntField(description="更新时间戳")
+
+    class Meta:
+        table = "wallpaper"
+        table_description = "用户壁纸表"
+        indexes = [
+            ("userid", "is_deleted"),
+        ]
+
+    async def to_dict(self):
+        return {
+            "id": self.id,
+            "userid": self.userid,
+            "url": self.url,
+            "thumbnail": self.thumbnail,
+            "is_deleted": self.is_deleted,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
