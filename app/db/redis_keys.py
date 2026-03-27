@@ -39,7 +39,7 @@ class RedisKeys:
     @staticmethod
     def user_profile(userid: int) -> str:
         """userid -> user profile 缓存"""
-        return f"user:profile:{userid}"
+        return f"30:user:profile:{userid}"
 
     @staticmethod
     def join_device_lock(device_id: str) -> str:
