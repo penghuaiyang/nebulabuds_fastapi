@@ -10,7 +10,7 @@ from app.models.models import PurchasedRecord, User
 logger = log_util.get_logger("login_service")
 
 
-def _to_user_code(userid: str) -> str:
+def _to_user_code(userid: int) -> str:
     """将 userid 转换为 userCode 格式。"""
     alphabet = [
         "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",
@@ -35,7 +35,7 @@ class LoginService:
     """
 
     @classmethod
-    async def _fetch_duration(cls, userid: str) -> int:
+    async def _fetch_duration(cls, userid: int) -> int:
         """获取用户录音时长。"""
         client = await get_redis_client()
         try:
@@ -46,7 +46,7 @@ class LoginService:
             return 0
 
     @classmethod
-    async def _fetch_music_num(cls, userid: str) -> int:
+    async def _fetch_music_num(cls, userid: int) -> int:
         """获取用户音乐使用次数。"""
         client = await get_redis_client()
         try:
@@ -57,7 +57,7 @@ class LoginService:
             return 0
 
     @classmethod
-    async def _fetch_record_rest(cls, userid: str) -> int:
+    async def _fetch_record_rest(cls, userid: int) -> int:
         """获取用户剩余录音时长。"""
         client = await get_redis_client()
         key = RedisKeys.record_rest(userid)
@@ -72,7 +72,7 @@ class LoginService:
             return 60
 
     @classmethod
-    async def _fetch_ai_num(cls, userid: str, clientid: str = "") -> int:
+    async def _fetch_ai_num(cls, userid: int, clientid: str = "") -> int:
         """获取用户 AI 使用次数。"""
         client = await get_redis_client()
         try:
@@ -83,7 +83,7 @@ class LoginService:
             return 0
 
     @classmethod
-    async def _fetch_free_record_date(cls, userid: str) -> Optional[int]:
+    async def _fetch_free_record_date(cls, userid: int) -> Optional[int]:
         """获取用户免费录音到期时间。"""
         client = await get_redis_client()
         key = RedisKeys.free_record_date(userid)
@@ -101,7 +101,7 @@ class LoginService:
             return None
 
     @classmethod
-    async def _get_client_info(cls, userid: str) -> dict:
+    async def _get_client_info(cls, userid: int) -> dict:
         """获取用户 clientInfo（mac -> {clientid, activeCode}）。"""
         client = await get_redis_client()
         mac_client_key = RedisKeys.mac_clientid(userid)
@@ -123,7 +123,7 @@ class LoginService:
             return {}
 
     @classmethod
-    async def _get_bt_name_info(cls, userid: str) -> dict:
+    async def _get_bt_name_info(cls, userid: int) -> dict:
         """获取用户 btNameInfo（btName -> {clientid, activeCode}）。"""
         client = await get_redis_client()
         bt_key = RedisKeys.btname_list(userid)
@@ -182,7 +182,7 @@ class LoginService:
             return 0
 
     @classmethod
-    async def login(cls, userid: str, clientid: str, deviceid: str) -> dict:
+    async def login(cls, userid: int, clientid: str, deviceid: str) -> dict:
         """处理用户登录，返回登录结果数据。"""
         from app.core.config import settings
 

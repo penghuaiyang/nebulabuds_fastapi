@@ -130,7 +130,7 @@ class RedisRollbacker:
                     return base_db, True
         return None, False
 
-    def _get_actual_db_for_user(self, base_db: int, userid: str) -> int:
+    def _get_actual_db_for_user(self, base_db: int, userid: int) -> int:
         """计算用户对应的实际 db（基于 userid 的前几位匹配 clientid）"""
         # 简化逻辑：遍历所有 client_db_start 查找匹配的
         for clientid, offset in CLIENT_DB_START.items():

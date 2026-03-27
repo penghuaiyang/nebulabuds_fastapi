@@ -60,12 +60,12 @@ class RedisKeys:
     # 格式: {db}:{namespace}:{scope}:{identifier}:{field?}
 
     @staticmethod
-    def record_duration(userid: str) -> str:
+    def record_duration(userid: int) -> str:
         """录音时长（原 db=7）"""
         return f"7:record:user:{userid}:duration"
 
     @staticmethod
-    def ai_num(userid: str, clientid: str = "") -> str:
+    def ai_num(userid: int, clientid: str = "") -> str:
         """AI 使用次数（db=8 + clientid偏移）
 
         旧系统：db = AI_NUM_DB(8) + CLIENT_DB_START[clientid]
@@ -74,32 +74,32 @@ class RedisKeys:
         return f"{8 + offset}:ai:user:{userid}:num"
 
     @staticmethod
-    def music_num(userid: str) -> str:
+    def music_num(userid: int) -> str:
         """音乐使用次数（原 db=10）"""
         return f"10:music:user:{userid}:num"
 
     @staticmethod
-    def btname_list(userid: str) -> str:
+    def btname_list(userid: int) -> str:
         """蓝牙名称列表（原 db=14，List 结构）"""
         return f"14:btname:user:{userid}:list"
 
     @staticmethod
-    def mac_active_code(userid: str) -> str:
+    def mac_active_code(userid: int) -> str:
         """mac -> activeCode Hash（原 db=23）"""
         return f"23:mac:user:{userid}:active_code"
 
     @staticmethod
-    def mac_clientid(userid: str) -> str:
+    def mac_clientid(userid: int) -> str:
         """mac -> clientid Hash（原 db=24）"""
         return f"24:mac:user:{userid}:clientid"
 
     @staticmethod
-    def free_record_date(userid: str) -> str:
+    def free_record_date(userid: int) -> str:
         """免费录音到期时间（原 db=25）"""
         return f"25:record:user:{userid}:free_date"
 
     @staticmethod
-    def record_rest(userid: str) -> str:
+    def record_rest(userid: int) -> str:
         """录音剩余时间（原 db=29）"""
         return f"29:record:user:{userid}:rest"
 

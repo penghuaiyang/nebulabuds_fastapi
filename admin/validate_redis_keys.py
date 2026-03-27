@@ -107,7 +107,7 @@ class RedisValidator:
             return parts[3]
         return None
 
-    async def _get_old_db_for_user(self, base_db: int, userid: str) -> int:
+    async def _get_old_db_for_user(self, base_db: int, userid: int) -> int:
         """获取用户对应的实际旧 db（分片）"""
         # 这里需要业务逻辑来确定 userid 对应的 clientid
         # 简化处理：假设 base_db + 某个固定偏移
@@ -118,7 +118,7 @@ class RedisValidator:
         self,
         new_key: str,
         old_db: int,
-        userid: str,
+        userid: int,
         actual_old_db: int,
     ):
         """比较 String 类型 key"""
@@ -173,7 +173,7 @@ class RedisValidator:
             })
             return False
 
-    async def compare_list_keys(self, new_key: str, old_db: int, userid: str):
+    async def compare_list_keys(self, new_key: str, old_db: int, userid: int):
         """比较 List 类型 key"""
         new_client = await self._get_redis(self._parse_db(new_key))
         old_client = await self._get_redis(old_db)
@@ -203,7 +203,7 @@ class RedisValidator:
         self,
         new_key: str,
         old_db: int,
-        userid: str,
+        userid: int,
     ):
         """比较 Hash 类型 key"""
         new_client = await self._get_redis(self._parse_db(new_key))

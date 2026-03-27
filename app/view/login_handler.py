@@ -16,10 +16,8 @@ logger = log_util.get_logger("login_handler")
 class LoginSchemas(BaseSchema):
     """Login 请求模型（继承自 BaseSchema，包含签名字段）"""
 
-    userid: str = Field(
+    userid: int = Field(
         ...,
-        min_length=1,
-        max_length=32,
         description="用户ID",
     )
     clientid: str = Field(
