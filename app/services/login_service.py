@@ -72,11 +72,11 @@ class LoginService:
             return 60
 
     @classmethod
-    async def _fetch_ai_num(cls, userid: str) -> int:
+    async def _fetch_ai_num(cls, userid: str, clientid: str = "") -> int:
         """获取用户 AI 使用次数。"""
         client = await get_redis_client()
         try:
-            value = await client.get(RedisKeys.ai_num(userid))
+            value = await client.get(RedisKeys.ai_num(userid, clientid))
             return int(value) if value else 0
         except Exception as exc:
             logger.warning(f"读取 AI 次数失败: {exc}")
@@ -207,7 +207,7 @@ class LoginService:
         duration = await cls._fetch_duration(userid)
         music_num = await cls._fetch_music_num(userid)
         record_rest = await cls._fetch_record_rest(userid)
-        ai_num = await cls._fetch_ai_num(userid)
+        ai_num = await cls._fetch_ai_num(userid, resolved_client_id)
         free_record_date = await cls._fetch_free_record_date(userid)
 
         user_info["duration"] = duration

@@ -1,3 +1,28 @@
+import json
+import os
+from pathlib import Path
+
+# 加载 client_db_start 映射（来自旧项目）
+_CLIENT_DB_START_PATH = Path(__file__).parent / "db_start.json"
+
+
+def _load_client_db_start() -> dict:
+    """懒加载 client_db_start 映射"""
+    if not hasattr(_load_client_db_start, "_cache"):
+        if _CLIENT_DB_START_PATH.exists():
+            with open(_CLIENT_DB_START_PATH, "r", encoding="utf-8") as f:
+                _load_client_db_start._cache = json.load(f)
+        else:
+            _load_client_db_start._cache = {}
+    return _load_client_db_start._cache
+
+
+def _get_db_offset(clientid: str) -> int:
+    """根据 clientid 获取 db 偏移量"""
+    db_start = _load_client_db_start()
+    return db_start.get(clientid, 0)
+
+
 class RedisKeys:
     # ===================== 固定 key（不涉及 db 编号） =====================
     USER_ID_SEQ = "user_id_seq"
@@ -40,9 +65,13 @@ class RedisKeys:
         return f"7:record:user:{userid}:duration"
 
     @staticmethod
-    def ai_num(userid: str) -> str:
-        """AI 使用次数（原 db=8）"""
-        return f"8:ai:user:{userid}:num"
+    def ai_num(userid: str, clientid: str = "") -> str:
+        """AI 使用次数（db=8 + clientid偏移）
+
+        旧系统：db = AI_NUM_DB(8) + CLIENT_DB_START[clientid]
+        """
+        offset = _get_db_offset(clientid)
+        return f"{8 + offset}:ai:user:{userid}:num"
 
     @staticmethod
     def music_num(userid: str) -> str:
