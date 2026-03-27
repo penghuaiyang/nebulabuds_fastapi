@@ -9,7 +9,7 @@ class BaseSchema(BaseModel):
     """
 
     pass_: str = Field(
-        ...,
+        None,
         alias="pass",
         min_length=1,
         max_length=64,
