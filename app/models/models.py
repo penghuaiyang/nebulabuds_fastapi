@@ -16,7 +16,6 @@ class TranslationCache(Model):
         unique_together = ("source_hash", "target_language")
 
 
-
 class User(Model):
     id = fields.IntField(pk=True)
     userid = fields.IntField()
@@ -48,6 +47,7 @@ class User(Model):
             "id": self.id,
             "userid": self.userid,
             "deviceid": self.deviceid,
+            "avatar": self.avartar,
             "clientCode": self.clientCode,
             "macInfo": self.macInfo,
             "phoneNo": self.phoneNo,
