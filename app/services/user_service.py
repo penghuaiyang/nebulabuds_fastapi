@@ -111,13 +111,13 @@ class UserService:
 
     @classmethod
     async def _create_user_record(
-        cls,
-        clientid: str,
-        deviceid: str,
-        platform: Optional[int],
-        nation: Optional[str],
-        localLanguage: Optional[str],
-        brand: Optional[str],
+            cls,
+            clientid: str,
+            deviceid: str,
+            platform: Optional[int],
+            nation: Optional[str],
+            localLanguage: Optional[str],
+            brand: Optional[str],
     ) -> User:
         """创建新用户记录。"""
         userid = await cls.allocate_userid()
@@ -141,13 +141,13 @@ class UserService:
 
     @classmethod
     async def _get_or_create_user(
-        cls,
-        clientid: str,
-        deviceid: str,
-        platform: Optional[int],
-        nation: Optional[str],
-        localLanguage: Optional[str],
-        brand: Optional[str],
+            cls,
+            clientid: str,
+            deviceid: str,
+            platform: Optional[int],
+            nation: Optional[str],
+            localLanguage: Optional[str],
+            brand: Optional[str],
     ) -> tuple[User, bool]:
         """二次确认后查询或创建用户。"""
         user = await User.filter(deviceid=deviceid).first()
@@ -180,13 +180,13 @@ class UserService:
 
     @classmethod
     async def _get_or_create_user_with_lock(
-        cls,
-        clientid: str,
-        deviceid: str,
-        platform: Optional[int],
-        nation: Optional[str],
-        localLanguage: Optional[str],
-        brand: Optional[str],
+            cls,
+            clientid: str,
+            deviceid: str,
+            platform: Optional[int],
+            nation: Optional[str],
+            localLanguage: Optional[str],
+            brand: Optional[str],
     ) -> tuple[User, bool]:
         """使用 Redis 分布式锁串行化同一 deviceid 的创建。"""
         try:
@@ -245,13 +245,13 @@ class UserService:
 
     @classmethod
     async def join(
-        cls,
-        clientid: str,
-        deviceid: str,
-        platform: Optional[int],
-        nation: Optional[str],
-        localLanguage: Optional[str],
-        brand: Optional[str],
+            cls,
+            clientid: str,
+            deviceid: str,
+            platform: Optional[int],
+            nation: Optional[str],
+            localLanguage: Optional[str],
+            brand: Optional[str],
     ) -> dict:
         """处理用户注册/登录。"""
         cached = await cls.get_user_cache(deviceid)
@@ -276,4 +276,7 @@ class UserService:
             logger.info(f"Existing user login: userid={user.userid}, deviceid={deviceid}")
 
         await cls.set_user_cache(user)
-        return await user.to_dict()
+
+        # 初始化 vip 为 0
+        vip_info = {"vip": 0}
+        return await user.to_dict() | vip_info
