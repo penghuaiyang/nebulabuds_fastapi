@@ -37,8 +37,7 @@ def check_params(func):
 
         # 否则正常校验参数
         if not check(params):
-            await api_write(request=request, code=0, message="params error")
-            return
+            return await api_write(request=request, code=0, message="params error")
 
         return await func(data, request, *args, **kwargs)
 

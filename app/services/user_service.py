@@ -36,6 +36,7 @@ NICKNAME_NOUNS = [
 JOIN_LOCK_TIMEOUT_SECONDS = 10
 JOIN_LOCK_BLOCKING_TIMEOUT_SECONDS = 3
 USER_CACHE_TTL_SECONDS = 86400
+USER_CACHE_REQUIRED_FIELDS = ("vip",)
 
 
 class UserService:
@@ -61,6 +62,30 @@ class UserService:
     def _generate_avatar() -> str:
         """生成随机头像。"""
         return f"{random.randint(1, 16)}.jpg"
+
+    @staticmethod
+    def _normalize_vip(vip_value: object) -> int:
+        """归一化 vip 字段，保证缓存载荷完整。"""
+        if vip_value in (None, ""):
+            return 0
+        if isinstance(vip_value, int):
+            return vip_value
+        try:
+            return int(vip_value)
+        except (TypeError, ValueError):
+            return 0
+
+    @classmethod
+    async def _serialize_user(cls, user: User) -> dict:
+        """序列化用户信息并补齐缓存字段。"""
+        user_data = await user.to_dict()
+        user_data["vip"] = cls._normalize_vip(getattr(user, "vip", 0))
+        return user_data
+
+    @staticmethod
+    def _is_user_cache_complete(user_data: dict) -> bool:
+        """检查用户缓存是否包含必要字段。"""
+        return all(field in user_data for field in USER_CACHE_REQUIRED_FIELDS)
 
     @classmethod
     async def allocate_userid(cls) -> int:
@@ -89,29 +114,37 @@ class UserService:
     @classmethod
     async def get_user_cache(cls, deviceid: str) -> Optional[dict]:
         """按 deviceid 读取用户缓存。"""
-        return await cls._get_user_cache(
+        cached = await cls._get_user_cache(
             RedisKeys.device_user_id(deviceid),
             f"deviceid={deviceid}",
         )
+        if cached and not cls._is_user_cache_complete(cached):
+            logger.info(f"Cache miss for incomplete user cache: deviceid={deviceid}")
+            return None
+        return cached
 
     @classmethod
     async def get_user_cache_by_userid(cls, userid: int) -> Optional[dict]:
         """按 userid 读取用户缓存。"""
-        return await cls._get_user_cache(
+        cached = await cls._get_user_cache(
             RedisKeys.user_profile(userid),
             f"userid={userid}",
         )
+        if cached and not cls._is_user_cache_complete(cached):
+            logger.info(f"Cache miss for incomplete user cache: userid={userid}")
+            return None
+        return cached
 
     @classmethod
     async def set_user_cache(
-            cls,
-            user: User,
-            user_data: Optional[dict] = None,
+        cls,
+        user: User,
+        user_data: Optional[dict] = None,
     ) -> None:
         """同时写入 deviceid 和 userid 两份用户缓存。"""
         try:
             redis_client = await cls._get_redis()
-            user_data = user_data or await user.to_dict()
+            user_data = user_data or await cls._serialize_user(user)
             payload = json.dumps(user_data)
             await redis_client.setex(
                 RedisKeys.device_user_id(user.deviceid),
@@ -131,9 +164,9 @@ class UserService:
 
     @classmethod
     async def invalidate_user_cache(
-            cls,
-            deviceid: Optional[str] = None,
-            userid: Optional[int] = None,
+        cls,
+        deviceid: Optional[str] = None,
+        userid: Optional[int] = None,
     ) -> None:
         """按 deviceid 和 userid 删除用户缓存。"""
         keys = []
@@ -173,19 +206,30 @@ class UserService:
         if not user:
             return None
 
-        user_data = await user.to_dict()
+        user_data = await cls._serialize_user(user)
         await cls.set_user_cache(user, user_data)
         return user_data
 
     @classmethod
+    async def is_vip(cls, userid: int) -> bool:
+        """优先使用缓存判断用户是否为 VIP。"""
+        user_info = await cls.get_user_by_userid(userid)
+        if not user_info:
+            return False
+
+        vip = cls._normalize_vip(user_info.get("vip", 0))
+        current_time = int(time.time())
+        return vip > current_time
+
+    @classmethod
     async def _create_user_record(
-            cls,
-            clientid: str,
-            deviceid: str,
-            platform: Optional[int],
-            nation: Optional[str],
-            localLanguage: Optional[str],
-            brand: Optional[str],
+        cls,
+        clientid: str,
+        deviceid: str,
+        platform: Optional[int],
+        nation: Optional[str],
+        localLanguage: Optional[str],
+        brand: Optional[str],
     ) -> User:
         """创建新用户记录。"""
         userid = await cls.allocate_userid()
@@ -209,13 +253,13 @@ class UserService:
 
     @classmethod
     async def _get_or_create_user(
-            cls,
-            clientid: str,
-            deviceid: str,
-            platform: Optional[int],
-            nation: Optional[str],
-            localLanguage: Optional[str],
-            brand: Optional[str],
+        cls,
+        clientid: str,
+        deviceid: str,
+        platform: Optional[int],
+        nation: Optional[str],
+        localLanguage: Optional[str],
+        brand: Optional[str],
     ) -> tuple[User, bool]:
         """二次确认后查询或创建用户。"""
         user = await User.filter(deviceid=deviceid).first()
@@ -248,13 +292,13 @@ class UserService:
 
     @classmethod
     async def _get_or_create_user_with_lock(
-            cls,
-            clientid: str,
-            deviceid: str,
-            platform: Optional[int],
-            nation: Optional[str],
-            localLanguage: Optional[str],
-            brand: Optional[str],
+        cls,
+        clientid: str,
+        deviceid: str,
+        platform: Optional[int],
+        nation: Optional[str],
+        localLanguage: Optional[str],
+        brand: Optional[str],
     ) -> tuple[User, bool]:
         """使用 Redis 分布式锁串行化同一 deviceid 的创建。"""
         try:
@@ -313,19 +357,18 @@ class UserService:
 
     @classmethod
     async def join(
-            cls,
-            clientid: str,
-            deviceid: str,
-            platform: Optional[int],
-            nation: Optional[str],
-            localLanguage: Optional[str],
-            brand: Optional[str],
+        cls,
+        clientid: str,
+        deviceid: str,
+        platform: Optional[int],
+        nation: Optional[str],
+        localLanguage: Optional[str],
+        brand: Optional[str],
     ) -> dict:
         """处理用户注册/登录。"""
         cached = await cls.get_user_cache(deviceid)
-        vip_info = {"vip": 0}
         if cached:
-            return cached | vip_info
+            return cached
 
         user = await User.filter(deviceid=deviceid).first()
         created = False
@@ -344,7 +387,6 @@ class UserService:
         if not created:
             logger.info(f"Existing user login: userid={user.userid}, deviceid={deviceid}")
 
-        await cls.set_user_cache(user)
-
-        # 初始化 vip 为 0
-        return await user.to_dict() | vip_info
+        user_data = await cls._serialize_user(user)
+        await cls.set_user_cache(user, user_data)
+        return user_data
