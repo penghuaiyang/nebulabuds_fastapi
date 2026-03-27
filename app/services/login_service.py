@@ -10,7 +10,7 @@ from app.models.models import PurchasedRecord, User
 logger = log_util.get_logger("login_service")
 
 
-def _to_user_code(userid: int) -> str:
+def _to_user_code(userid: str) -> str:
     """将 userid 转换为 userCode 格式。"""
     alphabet = [
         "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",
@@ -186,7 +186,7 @@ class LoginService:
         """处理用户登录，返回登录结果数据。"""
         from app.core.config import settings
 
-        user = await User.filter(userid=int(userid)).first()
+        user = await User.filter(userid=userid).first()
         if not user:
             raise ValueError("user not exist")
 
