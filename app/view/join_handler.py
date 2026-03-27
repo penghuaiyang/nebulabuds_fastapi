@@ -1,10 +1,10 @@
 """Join 接口处理器。"""
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 from fastapi import Request
 
-from app.common.utils.join_utils import check, create_pass, check_params
+from app.common.utils.join_utils import check_params
 from app.common.utils.jwt_utils import no_auth_required
 from app.common.utils.log_utils import log_util
 from app.services.user_service import UserService
@@ -56,13 +56,6 @@ class JoinSchemas(BaseModel):
     )
 
 
-def _normalize_platform(value: Optional[str]) -> Optional[int]:
-    """标准化平台字段。"""
-    if value is None:
-        return None
-    return int(value)
-
-
 @no_auth_required
 @check_params
 async def join(data: JoinSchemas, request: Request) -> dict[str, Any]:
@@ -71,7 +64,7 @@ async def join(data: JoinSchemas, request: Request) -> dict[str, Any]:
     user_info = await UserService.join(
         clientid=data.clientid,
         deviceid=data.deviceid,
-        platform=_normalize_platform(data.platform),
+        platform=data.platform,
         nation=data.nation,
         localLanguage=data.localLanguage,
         brand=data.brand,
