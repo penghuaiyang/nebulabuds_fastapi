@@ -114,7 +114,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             return self._create_auth_error_response("无效的令牌类型")
 
         # 验证必要字段
-        user_id = payload.get("user_id")
+        user_id = payload.get("userid")
         if not user_id:
             logger.warning(f"令牌缺少用户ID | 路径: {path} | 方法: {method} | IP: {client_ip}")
             return self._create_auth_error_response("无效的用户令牌")

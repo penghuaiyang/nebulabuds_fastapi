@@ -99,8 +99,10 @@ async def _handle_auth_issue(data: dict, real_ip: str) -> dict[str, Any]:
     return {
         "code": 1,
         "message": "签发成功",
-        "access_token": access_token,
-        "refresh_token": refresh_token,
+        "data": {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+        },
     }
 
 
@@ -133,6 +135,8 @@ async def _handle_auth_refresh(refresh_token: str | None, real_ip: str) -> dict[
     return {
         "code": 1,
         "message": "刷新成功",
-        "access_token": access_token,
-        "refresh_token": new_refresh_token,
+        "data": {
+            "access_token": access_token,
+            "refresh_token": new_refresh_token,
+        },
     }
