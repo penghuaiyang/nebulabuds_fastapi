@@ -39,6 +39,7 @@ from app.view.music_categories_list_handler import music_categories_list
 from app.view.music_cdn_handler import music_cdn
 from app.view.music_play_report_handler import music_play_report
 from app.view.ota_check_handler import ota_check
+from app.view.apple_pay_handler import apple_pay
 
 
 router = APIRouter()
@@ -351,4 +352,13 @@ router.add_api_route(
     methods=["POST"],
     summary="OTA固件检查",
     tags=["ota"],
+)
+
+# P2/P3 阶段新增路由 - 支付相关
+router.add_api_route(
+    path="/applePay/",
+    endpoint=apple_pay,
+    methods=["POST"],
+    summary="Apple IAP 支付验证",
+    tags=["payment"],
 )
